@@ -5,26 +5,21 @@ import com.ebookApi.EBook.DTO.response.SingleBookResponseDTO;
 import com.ebookApi.EBook.Helper.AppHttpClientHelper;
 import com.ebookApi.EBook.Helper.BookSearchParams;
 import com.ebookApi.EBook.Helper.CacheHelper;
-import com.ebookApi.EBook.enums.SearchParam;
-import com.ebookApi.EBook.exception.InternalServerError;
+import com.ebookApi.EBook.exception.ApiResourceNotFoundException;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 
-import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriComponentsBuilder;
-import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.util.function.Supplier;
 
 @Service
 @RequiredArgsConstructor
@@ -32,7 +27,11 @@ public class BookService {
 
     public  final String base_url="https://gutendex.com/books/";
     private final Logger log= LoggerFactory.getLogger(BookService.class);
-    final String QUERY_CACHE_NAME="querycache";
+    final String QUERY_CACHE_NAME1 ="querycache";
+    final String SINGLE_BOOK_CACHE_NAME="SingleBookResponseCache";
+    @Getter
+    @Setter
+    public String fileName=null;
 
     public final CacheHelper cacheHelper;
     public final AppHttpClientHelper httpClientHelper;
@@ -44,7 +43,7 @@ public class BookService {
     @Cacheable(cacheNames = "SingleBookResponseCache", key = "#id")
     public SingleBookResponseDTO getBookById(Long id) throws IOException, InterruptedException {
         log.info("Inside getBookById method");
-        SingleBookResponseDTO requestDTO=httpClientHelper.parseResponse(httpClientHelper.sendGetRequest(UriComponentsBuilder.fromUriString(base_url+id).build().toUri()), SingleBookResponseDTO.class);
+        SingleBookResponseDTO requestDTO=httpClientHelper.parseResponse(httpClientHelper.sendGetRequest(UriComponentsBuilder.fromUriString(base_url+id).build().toUri(),String.class), SingleBookResponseDTO.class);
         log.debug("SingleBookResponseObject: {}",requestDTO);
         return requestDTO;
 
@@ -58,10 +57,10 @@ public class BookService {
             log.info("Cache Key: {}",cache_key);
 
 //            this returns the cached data  or fetches it and saves it in the cache;
-           return cacheHelper.retrieveOrCacheData(QUERY_CACHE_NAME,cache_key, MutipleBookResponse.class,()->{
+           return cacheHelper.retrieveOrCacheData(QUERY_CACHE_NAME1,cache_key, MutipleBookResponse.class,()->{
                 MutipleBookResponse response= null;
                 try {
-                    response = httpClientHelper.parseResponse(httpClientHelper.sendGetRequest(url), MutipleBookResponse.class);
+                    response = httpClientHelper.parseResponse(httpClientHelper.sendGetRequest(url,String.class), MutipleBookResponse.class);
 
                 }
                 catch (IOException | InterruptedException e) {
@@ -71,6 +70,44 @@ public class BookService {
             });
 //            log.info("Response Before Setting Next: {}",response);
 //            log.info("Response After Setting Next: {}",response);
+
+    }
+
+
+    /**
+     * i would send the details of a book when the getBookbyId endpoint is hit and it would contain the formats
+     * and when sending a download request the format must be included with that format i can then make a download request
+     * */
+    public HttpResponse<InputStream> downloadBookById(Long id, String format){
+       SingleBookResponseDTO cachedBook= cacheHelper.retrieveOrCacheData(SINGLE_BOOK_CACHE_NAME,id,SingleBookResponseDTO.class, ()->{
+                    SingleBookResponseDTO singleBookResponseDTO=null;
+                    try {
+                        singleBookResponseDTO=httpClientHelper.parseResponse(httpClientHelper.sendGetRequest(URI.create(base_url+id),String.class),SingleBookResponseDTO.class);
+                    } catch (IOException | InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    return singleBookResponseDTO;
+                });
+        log.info("BookFileName form Object: {}",cachedBook.title());
+//       log.info("CacheBook:{}",cachedBook);
+       HttpResponse<InputStream> stream=null;
+       if(cachedBook==null) throw new ApiResourceNotFoundException("Book Not Found With Id: "+id);
+        this.setFileName(cachedBook.title());
+        log.info("BookFileName: {}",fileName);
+       /*
+       * i need to create a method that would send a get request to the download url but would return
+       * an inputStream or a generic type in the AppHttpClientHelper class
+       * */
+        if(cachedBook.extractDownloadLink(format) == null) throw new ApiResourceNotFoundException("invalid Download Format: "+format);
+
+        try {
+            stream=httpClientHelper.sendGetRequest(URI.create(cachedBook.extractDownloadLink(format)),
+                    InputStream.class);
+
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        return stream;
 
     }
 

@@ -26,6 +26,13 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponseFactory.createErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR,request.getRequestURI(),message,new ArrayList<>()));
     }
+    @ExceptionHandler(ApiResourceNotFoundException.class)
+    public ResponseEntity<?> handleApiResourceNotFoundException(ApiResourceNotFoundException ex,HttpServletRequest request){
+        var message =ex.getMessage();
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponseFactory.createErrorResponse(HttpStatus.NOT_FOUND,request.getRequestURI(),
+                        message,new ArrayList<>()));
+    }
 
 
 }

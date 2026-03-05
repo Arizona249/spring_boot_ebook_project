@@ -39,6 +39,15 @@ public record SingleBookResponseDTO(Long id,
         return false;
     }
 
+//    this should return the url for download
+    public String extractDownloadLink(String format){
+//        System.out.println(format);
+//        System.out.println(formats.get(format));
+        return formats.get(format).strip();
+
+    }
+
+
     public String extractCoverImage(){
         return containsFormat("image/jpeg")?formats.get("image/jpeg"):null;
     }

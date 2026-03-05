@@ -9,6 +9,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -24,19 +25,33 @@ public class AppHttpClientHelper {
     private final ObjectMapper mapper;
 
 
-    public HttpResponse<String> sendGetRequest(URI url) throws IOException, InterruptedException {
+    public <T> HttpResponse<T> sendGetRequest(URI url, Class<T> responseType) throws IOException, InterruptedException {
+
+        HttpResponse<T> response=null;
         HttpRequest request= HttpRequest.newBuilder()
                 .uri(url)
                 .GET()
                 .build();
-        HttpResponse<String> response=client.send(request, HttpResponse.BodyHandlers.ofString());
-        System.out.println(response.statusCode());
-        System.out.println(response.body());
+        if(responseType== String.class){
+            response=(HttpResponse<T>) client.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
+        } else if (responseType==InputStream.class) {
+            response= (HttpResponse<T>) client.send(request, HttpResponse.BodyHandlers.ofInputStream());
+        }
+//        System.out.println(response.statusCode());
+        System.out.println(response.headers());
         System.out.println(response.uri());
         return response;
 
 
     }
+
+//    public HttpResponse sendDownloadRequest(URI url) throws IOException, InterruptedException {
+//        HttpRequest request= HttpRequest.newBuilder()
+//                .uri(url)
+//                .GET()
+//                .build();
+//        HttpResponse<> response= client.send(request, HttpResponse.BodyHandlers.ofInputStream());
+//    }
 
     public URI buildRequestUri(BookSearchParams params){
         if(params!=null){
@@ -73,9 +88,9 @@ public class AppHttpClientHelper {
 
     public <T> T parseResponse(HttpResponse<String> response, Class<T> type){
 
-        log.info("Response Body Before Modification: {}",response.body());
+//        log.info("Response Body Before Modification: {}",response.body());
         if(response.statusCode()>=200 && response.statusCode()<300) {
-            log.info("Response Body Before Modification: {}",response.body());
+//            log.info("Response Body Before Modification: {}",response.body());
             try {
                 return mapper.readValue(response.body(),type);
             }
