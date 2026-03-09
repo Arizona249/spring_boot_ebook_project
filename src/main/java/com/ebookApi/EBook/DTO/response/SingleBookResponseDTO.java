@@ -43,7 +43,7 @@ public record SingleBookResponseDTO(Long id,
     public String extractDownloadLink(String format){
 //        System.out.println(format);
 //        System.out.println(formats.get(format));
-        return formats.get(format).strip();
+        return formats.get(format);
 
     }
 

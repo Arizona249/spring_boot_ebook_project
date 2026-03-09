@@ -6,6 +6,7 @@ import com.ebookApi.EBook.Helper.AppHttpClientHelper;
 import com.ebookApi.EBook.Helper.BookSearchParams;
 import com.ebookApi.EBook.Helper.CacheHelper;
 import com.ebookApi.EBook.exception.ApiResourceNotFoundException;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -50,14 +51,19 @@ public class BookService {
     }
 
     public MutipleBookResponse getBookBySearchParams(BookSearchParams params,String app_url){
-//            log.debug("BookSearchParams: {}",params);
+            log.info("BookSearchParams: {}",params);
+            log.info("Cache Key From Method Call: {}",cacheHelper.getCacheKey(params));
             var url= httpClientHelper.buildRequestUri(params);
-            var cache_key=cacheHelper.getCacheKey(params);
+
 //            log.info("Built URL: {}",url);
-            log.info("Cache Key: {}",cache_key);
+
 
 //            this returns the cached data  or fetches it and saves it in the cache;
-           return cacheHelper.retrieveOrCacheData(QUERY_CACHE_NAME1,cache_key, MutipleBookResponse.class,()->{
+           return cacheHelper.retrieveOrCacheData(QUERY_CACHE_NAME1,cacheHelper.getCacheKey(params), MutipleBookResponse.class,()->{
+               String cache_key;
+               cache_key=cacheHelper.getCacheKey(params);
+                log.info("Cache Key: {}",cache_key);
+
                 MutipleBookResponse response= null;
                 try {
                     response = httpClientHelper.parseResponse(httpClientHelper.sendGetRequest(url,String.class), MutipleBookResponse.class);
@@ -91,18 +97,26 @@ public class BookService {
         log.info("BookFileName form Object: {}",cachedBook.title());
 //       log.info("CacheBook:{}",cachedBook);
        HttpResponse<InputStream> stream=null;
-       if(cachedBook==null) throw new ApiResourceNotFoundException("Book Not Found With Id: "+id);
-        this.setFileName(cachedBook.title());
+       if(cachedBook==null)
+           throw new ApiResourceNotFoundException("Book Not Found With Id: "+id);
+
+       log.info("File Extension: {}",extractFileExtension(format));
+
+        this.setFileName(cachedBook.title()+extractFileExtension(format));
         log.info("BookFileName: {}",fileName);
+
+
        /*
        * i need to create a method that would send a get request to the download url but would return
        * an inputStream or a generic type in the AppHttpClientHelper class
        * */
-        if(cachedBook.extractDownloadLink(format) == null) throw new ApiResourceNotFoundException("invalid Download Format: "+format);
+        if(cachedBook.extractDownloadLink(format) == null)
+            throw new ApiResourceNotFoundException("invalid Download Format: "+format);
 
         try {
-            stream=httpClientHelper.sendGetRequest(URI.create(cachedBook.extractDownloadLink(format)),
+            stream=httpClientHelper.sendGetRequest(URI.create(cachedBook.extractDownloadLink(format).strip()),
                     InputStream.class);
+
 
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
@@ -118,6 +132,28 @@ public class BookService {
         response.setNext(httpClientHelper.getParamsFromUri(app_url, response.getNext()));
         response.setPrevious(httpClientHelper.getParamsFromUri(app_url, response.getPrevious()));
         return response;
+    }
+
+//
+    public String extractFileExtension(@NotNull String format){
+        String extension=".zip";
+        switch (format){
+            case "text/html"-> extension=".html";
+
+            case "text/plain", "text/plain; charset=utf-8", "text/plain; charset=us-ascii" -> extension=".txt";
+            case "application/x-mobipocket-ebook"-> extension=".mobi";
+            case "application/epub+zip", "application/epub zip"->extension=".epub";
+            case "application/pdf"-> extension=".pdf";
+            case "audio/mpeg"->extension=".mp3";
+            case "application/postscript"->extension=".ps";
+            case "application/rdf+xml", "application/rdf xml"->extension=".rdf";
+            case "application/octet-stream"-> extension=".zip";
+            case "audio/ogg"->extension=".ogg";
+            case "audio/mp4"->extension=".m4b";
+
+        }
+
+        return extension;
     }
 
 /*    //    Cache search query Data manually because of complex search param key

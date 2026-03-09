@@ -9,7 +9,8 @@ public enum SearchParam {
     LANGUAGES("languages"),
     TOPIC("topic"),
     MIME_TYPES("mime_type"),
-    PAGE("page");
+    PAGE("page"),
+    IDS("ids");
     public String value;
 }
 

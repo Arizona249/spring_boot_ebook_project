@@ -73,6 +73,12 @@ public class AppHttpClientHelper {
             params.page().ifPresent(v->{
                 uri.queryParam(SearchParam.PAGE.value,v.strip());
             });
+            params.ids().ifPresent(v->{
+                uri.queryParam(SearchParam.IDS.value,v);
+            });
+            params.mime_type().ifPresent(v->{
+                uri.queryParam(SearchParam.MIME_TYPES.value,v);
+            });
             return uri.build()
                     .encode()
                     .toUri();

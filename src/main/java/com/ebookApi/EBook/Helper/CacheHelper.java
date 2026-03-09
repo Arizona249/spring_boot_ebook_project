@@ -89,6 +89,24 @@ public class CacheHelper {
                     cacheKey=SearchParam.PAGE.value+"="+v.strip();
                 }
             });
+            params.ids().ifPresent(v->{
+//                this means it has a value already
+                if(cacheKey!=null){
+                    cacheKey+="&"+SearchParam.IDS.value+"="+v.strip();
+                }
+                else if (cacheKey == null || cacheKey.isBlank()) {
+                    cacheKey=SearchParam.IDS.value+"="+v.strip();
+                }
+            });
+            params.mime_type().ifPresent(v->{
+                if(cacheKey!=null){
+                    cacheKey+="&"+SearchParam.MIME_TYPES.value+"="+v.strip();
+                }
+                else if (cacheKey == null || cacheKey.isBlank()) {
+                    cacheKey=SearchParam.MIME_TYPES.value+"="+v.strip();
+                }
+            });
+            if(cacheKey==null)cacheKey=SearchParam.SORT.value+"=popular";
             return cacheKey;
         }
         return cacheKey=SearchParam.SORT.value+"=popular";
